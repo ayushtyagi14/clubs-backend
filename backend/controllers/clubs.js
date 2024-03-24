@@ -3,14 +3,12 @@ const { supabase } = require("../db");
 
 async function fetchDocument(req, res) {
   try {
-    const { table, id } = req.params;
-    // Fetch the document with the specified ID from the specified table
-    console.log(tableName);
+    const { table, id } = req.params; // Correct variable name from tableName to table
     const { data: document, error } = await supabase
-      .from(tableName)
+      .from(table) // Use table instead of tableName
       .select("*")
       .eq("clubId", id)
-      .single(); // Retrieve only one document
+      .single();
 
     if (error) {
       throw error;
