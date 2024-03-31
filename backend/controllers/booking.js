@@ -21,6 +21,8 @@ async function createBooking(req, res) {
 
     let validClubId;
 
+    let validUserId = userId;
+
     // Determine the valid club ID based on the provided type
     switch (type) {
       case "AfterParty":
@@ -35,9 +37,6 @@ async function createBooking(req, res) {
       default:
         return res.status(400).json({ message: "Invalid club type" });
     }
-
-    console.log("Valid Club ID:", validClubId);
-    console.log("Type:", type);
 
     // Check if the valid club ID exists in the corresponding table
     if (validClubId) {
@@ -66,6 +65,34 @@ async function createBooking(req, res) {
       const club = clubs[0];
 
       console.log("Club:", club);
+    }
+
+    if (validUserId) {
+      const { data: users, error: clubError } = await supabase
+        .from('Accounts')
+        .select('id')
+        .eq("id", validUserId);
+        
+      if (clubError) {
+        console.error("Supabase Club Error:", clubError.message);
+        throw clubError;
+      }
+
+      if (users) {
+        console.log("Found club with id: ", users);
+      }
+
+      console.log("Supabase Clubs Data:", users);
+
+      if (!users || users.length === 0) {
+        console.log(`${type} doesn't exist`);
+        return res.status(404).json({ message: `user doesn't exist` });
+      }
+
+      // Assuming that only one row should match, take the first row
+      const user = users[0];
+
+      console.log("User:", user);
     }
 
     // Insert new booking into 'Bookings' table
