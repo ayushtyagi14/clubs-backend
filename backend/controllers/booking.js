@@ -41,7 +41,7 @@ async function createBooking(req, res) {
     // Check if the valid club ID exists in the corresponding table
     if (validClubId) {
       const { data: clubs, error: clubError } = await supabase
-        .from('SpecialEvents')
+        .from(type)
         .select('clubId')
         .eq("clubId", validClubId);
 
