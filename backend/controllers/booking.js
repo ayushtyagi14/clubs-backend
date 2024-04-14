@@ -1,134 +1,80 @@
 const { supabase } = require("../db");
 
-async function createBooking(req, res) {
+const handleClubBooking = async (req, res) => {
   try {
-    const {
-      userId,
-      clubName,
-      guests,
-      type,
-      afterPartyId,
-      nightClubId,
-      specialEventId,
-      totalGuests,
-      couple,
-      male,
-      female,
-      date,
-      isCompleted,
-      amount,
-    } = req.body;
+    const { userId, clubId, bookingDate, bookingTime, users, totalGuest, couple, female, stag, amount, isPaid, isCompleted } = req.body;
 
-    let validClubId;
+    // Check if the clubId exists in the Clubs table
+    const { data: clubData, error: clubError } = await supabase
+      .from('Clubs')
+      .select('*') // Select all fields to get clubName and clubType
+      .eq('clubId', clubId)
+      .single();
 
-    let validUserId = userId;
-
-    // Determine the valid club ID based on the provided type
-    switch (type) {
-      case "AfterParty":
-        validClubId = afterPartyId;
-        break;
-      case "NightClubs":
-        validClubId = nightClubId;
-        break;
-      case "SpecialEvents":
-        validClubId = specialEventId;
-        break;
-      default:
-        return res.status(400).json({ message: "Invalid club type" });
+    if (clubError || !clubData) {
+      return res.status(400).json({ error: 'Invalid clubId' });
     }
 
-    // Check if the valid club ID exists in the corresponding table
-    if (validClubId) {
-      const { data: clubs, error: clubError } = await supabase
-        .from(type)
-        .select('clubId')
-        .eq("clubId", validClubId);
+    // Log clubName and clubType to the console
+    console.log('Club Name:', clubData.clubName);
+    console.log('Club Type:', clubData.type);
 
-      if (clubError) {
-        console.error("Supabase Club Error:", clubError.message);
-        throw clubError;
-      }
+    // Check if userId exists in the Accounts table
+    const { data: userData, error: userError } = await supabase
+      .from('Accounts')
+      .select('*')
+      .eq('id', userId)
+      .single();
 
-      if (clubs) {
-        console.log("Found club with id: ", clubs);
-      }
-
-      console.log("Supabase Clubs Data:", clubs);
-
-      if (!clubs || clubs.length === 0) {
-        console.log(`${type} doesn't exist`);
-        return res.status(404).json({ message: `${type} doesn't exist` });
-      }
-
-      // Assuming that only one row should match, take the first row
-      const club = clubs[0];
-
-      console.log("Club:", club);
+    if (userError || !userData) {
+      return res.status(400).json({ error: 'Invalid userId' });
     }
 
-    if (validUserId) {
-      const { data: users, error: clubError } = await supabase
+    // Check if all users exist in the Accounts table
+    for (const user of users) {
+      const { data: userData, error: userError } = await supabase
         .from('Accounts')
-        .select('id')
-        .eq("id", validUserId);
-        
-      if (clubError) {
-        console.error("Supabase Club Error:", clubError.message);
-        throw clubError;
+        .select('*')
+        .eq('id', user)
+        .single();
+
+      if (userError || !userData) {
+        return res.status(400).json({ error: `Invalid user with id ${user}` });
       }
-
-      if (users) {
-        console.log("Found club with id: ", users);
-      }
-
-      console.log("Supabase Clubs Data:", users);
-
-      if (!users || users.length === 0) {
-        console.log(`${type} doesn't exist`);
-        return res.status(404).json({ message: `user doesn't exist` });
-      }
-
-      // Assuming that only one row should match, take the first row
-      const user = users[0];
-
-      console.log("User:", user);
     }
 
-    // Insert new booking into 'Bookings' table
-    const { data: booking, error: bookingError } = await supabase
-      .from("Bookings")
+    // Insert booking data into ClubBookings table
+    const { data, error } = await supabase
+      .from('ClubBookings')
       .insert([
         {
           userId,
-          clubName,
-          guests,
-          type,
-          afterPartyId,
-          nightClubId,
-          specialEventId,
-          totalGuests,
+          clubId,
+          bookingDate,
+          bookingTime,
+          users,
+          totalGuest,
           couple,
-          male,
           female,
-          date,
-          isCompleted,
+          stag,
           amount,
-        },
+          isPaid,
+          isCompleted,
+          clubName: clubData.clubName,
+          clubType: clubData.type
+        }
       ]);
 
-    if (bookingError) {
-      console.error("Supabase Booking Error:", bookingError.message);
-      throw bookingError;
+    if (error) {
+      return res.status(500).json({ error: 'Failed to create club booking' });
     }
 
-    console.log("Booking created successfully:", booking);
-
-    res.status(201).json({ message: "Booking created successfully", data: booking });
+    res.status(200).json({ message: `Club booking created successfully for ${clubData.clubName} on ${bookingDate} at ${bookingTime} by ${userData.username}` });
   } catch (error) {
-    console.error("Error creating booking:", error.message);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ error: 'Internal server error' });
   }
-}
+};
 
-module.exports = { createBooking };
+module.exports = {
+  handleClubBooking
+};
