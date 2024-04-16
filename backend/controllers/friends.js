@@ -190,6 +190,25 @@ async function declineFriendRequest(req, res) {
     }
 }
 
+async function getAllFriends(req, res) {
+    try {
+        const { receiverId } = req.body;
+
+        const { data: document, error } = await supabase
+            .from("FriendsRequest")
+            .select("*")
+            .eq("receiverId", receiverId)
+
+        if (error) {
+            throw error;
+        }
+        res.json(document);
+    } catch (error) {
+        console.error("Error getting friend requests:", error.message);
+        res.status(500).json({ message: "Internal server error" });
+    }
+}
+
 // Subscribe to changes in the FriendsRequest table
 const friendsRequestSubscription = supabase
     .channel('custom-insert-channel')
@@ -198,4 +217,4 @@ const friendsRequestSubscription = supabase
     })
     .subscribe();
 
-module.exports = { sendFriendRequest, acceptFriendRequest, declineFriendRequest };
+module.exports = { sendFriendRequest, acceptFriendRequest, declineFriendRequest, getAllFriends };
