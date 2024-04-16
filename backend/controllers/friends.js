@@ -24,7 +24,23 @@ async function sendFriendRequest(req, res) {
             return res.status(400).json({ error: `Username ${receiverUsername} doesn't exist` });
         }
 
-        const { error: requestError } = await supabase
+        // Check if a friend request already exists between sender and receiver
+        const { data: existingRequest, error: requestError } = await supabase
+            .from('FriendsRequest')
+            .select('*')
+            .eq('senderId', senderId)
+            .eq('receiverId', receiverData.id)
+            .single();
+
+        if (existingRequest) {
+            if (existingRequest.status === 'pending') {
+                return res.status(400).json({ error: 'Friend request already sent' });
+            } else if (existingRequest.status === 'accepted') {
+                return res.status(400).json({ error: 'User is already a friend' });
+            }
+        }
+
+        const { error: insertError } = await supabase
             .from('FriendsRequest')
             .insert([
                 {
@@ -36,14 +52,15 @@ async function sendFriendRequest(req, res) {
                     senderUsername: senderData.username,
                     senderName: senderData.fullName,
                     senderAvatar: senderData.avatar,
+                    status: 'pending' // Set the status of the friend request as pending
                 }
             ]);
 
-        if (requestError) {
+        if (insertError) {
             return res.status(500).json({ error: 'Failed to send the friend request' });
         }
 
-        res.status(200).json({ message: `Friend Request sent by ${senderData.username} to ${receiverData.username} succefully!` });
+        res.status(200).json({ message: `Friend Request sent by ${senderData.username} to ${receiverData.username} successfully!` });
     } catch (error) {
         console.error("Error sending friend request:", error.message);
         res.status(500).json({ message: "Internal server error" });
@@ -112,6 +129,18 @@ async function acceptFriendRequest(req, res) {
             }
         }
 
+        // Update the status of the friend request in the FriendsRequest table
+        const { data: friendRequest, error: friendRequestError } = await supabase
+            .from('FriendsRequest')
+            .update({ status: 'accepted' })
+            .eq('receiverId', receiverId)
+            .eq('senderId', senderData.id)
+            .single();
+
+        if (friendRequestError) {
+            return res.status(500).json({ error: 'Failed to update friend request status' });
+        }
+
         res.status(200).json({ message: `Friend Request accepted by ${receiverData.username} to ${senderData.username} successfully!` });
     } catch (error) {
         console.error("Error accepting friend request:", error.message);
@@ -119,12 +148,54 @@ async function acceptFriendRequest(req, res) {
     }
 }
 
+async function declineFriendRequest(req, res) {
+    try {
+        const { senderUsername, receiverId } = req.body;
+
+        const { data: senderData, error: senderError } = await supabase
+            .from('Accounts')
+            .select('*')
+            .eq('username', senderUsername)
+            .single();
+
+        if (senderError || !senderData) {
+            return res.status(400).json({ error: 'Invalid sender username' });
+        }
+
+        const { data: receiverData, error: receiverError } = await supabase
+            .from('Accounts')
+            .select('*')
+            .eq('id', receiverId)
+            .single();
+
+        if (receiverError || !receiverData) {
+            return res.status(400).json({ error: 'Invalid receiverId' });
+        }
+
+        // Delete the friend request entry from the FriendsRequest table
+        const { data: deletedFriendRequest, error: deleteError } = await supabase
+            .from('FriendsRequest')
+            .delete()
+            .eq('receiverId', receiverId)
+            .eq('senderId', senderData.id);
+
+        if (deleteError) {
+            return res.status(500).json({ error: 'Failed to delete friend request entry' });
+        }
+
+        res.status(200).json({ message: `Friend Request declined by ${receiverData.username} to ${senderData.username} successfully!` });
+    } catch (error) {
+        console.error("Error declining friend request:", error.message);
+        res.status(500).json({ message: "Internal server error" });
+    }
+}
+
 // Subscribe to changes in the FriendsRequest table
 const friendsRequestSubscription = supabase
     .channel('custom-insert-channel')
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'FriendsRequest' }, (payload) => {
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'FriendsRequest' }, (payload) => {
         console.log('Change received:', payload);
     })
     .subscribe();
 
-module.exports = { sendFriendRequest, acceptFriendRequest };
+module.exports = { sendFriendRequest, acceptFriendRequest, declineFriendRequest };

@@ -68,7 +68,7 @@ const handleClubBooking = async (req, res) => {
     let newBookings = userExists.newBookings || [];
 
     // Append new booking details to the newBookings array
-    newBookings.push({ clubId, clubName: clubData.clubName, clubType: clubData.type, bookingDate, bookingTime, totalGuest });
+    newBookings.push({ clubId, clubName: clubData.clubName, clubType: clubData.type, clubImage: clubData.mainImg, bookingDate, bookingTime, totalGuest });
 
     // Update newBookings column in the Accounts table for userId
     const { data: userDataUpdate, error: userUpdateError } = await supabase
@@ -100,7 +100,7 @@ const handleClubBooking = async (req, res) => {
         let newBookings = userExists.newBookings || [];
 
         // Append new booking details to the newBookings array
-        newBookings.push({ clubId, clubName: clubData.clubName, clubType: clubData.type, bookingDate, bookingTime, totalGuest });
+        newBookings.push({ clubId, clubName: clubData.clubName, clubType: clubData.type, clubImage: clubData.mainImg, bookingDate, bookingTime, totalGuest });
 
         // Update newBookings column in the Accounts table for user
         const { data, error } = await supabase
